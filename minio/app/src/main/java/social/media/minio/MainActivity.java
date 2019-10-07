@@ -41,14 +41,14 @@ public class MainActivity extends AppCompatActivity {
             @RequiresApi(api = Build.VERSION_CODES.O)
             @Override
             public void onClick(View view) {
-                targetIP = targetip.getText().toString();
+//                targetIP = targetip.getText().toString();
                 AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
 
                 ClientConfiguration clientConfig = new ClientConfiguration();
-                clientConfig.setProtocol(Protocol.HTTP);
+                clientConfig.setProtocol(Protocol.HTTPS);
 
                 AwsClientBuilder.EndpointConfiguration endpointConfiguration = new AwsClientBuilder.EndpointConfiguration(
-                        "http://10.3.1.124:9000", "us-east-1");
+                        "https://10.3.1.124:9000", "us-west-1");
 
                 AmazonS3 client = AmazonS3ClientBuilder.standard()
                         .withCredentials(new AWSStaticCredentialsProvider(credentials))
@@ -84,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                client.putObject("cataws", "cat.jpg", tempFile.toFile());
+                client.putObject("upload_csv_minio", "cat.jpg", tempFile.toFile());
             }
         });
     }
