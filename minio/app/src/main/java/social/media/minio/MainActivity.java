@@ -67,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
 
         try {
             System.out.println("Uploading a new object to S3 from a file\n");
-            File file = new File("asdasd");
+            File file = new File("file_path");
             // Upload file
             s3Client.putObject(new PutObjectRequest(bucketName, keyName, file));
 
