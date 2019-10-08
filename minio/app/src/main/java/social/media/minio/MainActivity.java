@@ -59,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
 
         AmazonS3 s3Client = AmazonS3ClientBuilder
                 .standard()
-                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("http://localhost:9000", Regions.US_EAST_1.name()))
+                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("http://10.3.1.124:9000", Regions.US_EAST_1.name()))
                 .withPathStyleAccessEnabled(true)
                 .withClientConfiguration(clientConfiguration)
                 .withCredentials(new AWSStaticCredentialsProvider(credentials))
