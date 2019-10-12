@@ -3,11 +3,15 @@ package social.media.minio;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.ProgressDialog;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -16,13 +20,21 @@ import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferListener;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferObserver;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferState;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferUtility;
+import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
+import com.amazonaws.services.s3.transfer.Transfer;
 
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -38,6 +50,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     public String accessKey = "JqqcQzLPx9A8M6eL";
@@ -46,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
     private static String bucketName = "testbucket";
     private static String keyName = "hosts";
     private static String uploadFileName = "/etc/hosts";
+    TransferUtility transferUtility;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,62 +67,53 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         final EditText targetip = (EditText) findViewById(R.id.taraget_ip);
         Button ok = (Button) findViewById(R.id.btn_ok);
-        AWSCredentials credentials = new BasicAWSCredentials("JqqcQzLPx9A8M6eL", "S77TZka2CDpLWss3");
-        ClientConfiguration clientConfiguration = new ClientConfiguration();
-        clientConfiguration.setSignerOverride("AWSS3V4SignerType");
-
-        AmazonS3 s3Client = AmazonS3ClientBuilder
-                .standard()
-                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("http://10.3.1.124:9000", Regions.US_EAST_1.name()))
-                .withPathStyleAccessEnabled(true)
-                .withClientConfiguration(clientConfiguration)
-                .withCredentials(new AWSStaticCredentialsProvider(credentials))
-                .build();
-
-        try {
-            System.out.println("Uploading a new object to S3 from a file\n");
-            File file = new File("file_path");
-            // Upload file
-            s3Client.putObject(new PutObjectRequest(bucketName, keyName, file));
-
-            // Download file
-            GetObjectRequest rangeObjectRequest = new GetObjectRequest(bucketName, keyName);
-            S3Object objectPortion = s3Client.getObject(rangeObjectRequest);
-            System.out.println("Printing bytes retrieved:");
-            try {
-                displayTextInputStream(objectPortion.getObjectContent());
-            } catch (IOException e) {
-                e.printStackTrace();
+        ok.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                upload();
             }
-        } catch (AmazonServiceException ase) {
-            System.out.println("Caught an AmazonServiceException, which " + "means your request made it "
-                    + "to Amazon S3, but was rejected with an error response" + " for some reason.");
-            System.out.println("Error Message:    " + ase.getMessage());
-            System.out.println("HTTP Status Code: " + ase.getStatusCode());
-            System.out.println("AWS Error Code:   " + ase.getErrorCode());
-            System.out.println("Error Type:       " + ase.getErrorType());
-            System.out.println("Request ID:       " + ase.getRequestId());
-
-        } catch (AmazonClientException ace) {
-            System.out.println("Caught an AmazonClientException, which " + "means the client encountered " + "an internal error while trying to "
-                    + "communicate with S3, " + "such as not being able to access the network.");
-            System.out.println("Error Message: " + ace.getMessage());
-
-        }
+        });
 
     }
 
-    private void displayTextInputStream(InputStream input) throws IOException {
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(input));
-        while (true) {
-            String line = reader.readLine();
-            if (line == null)
-                break;
-
-            System.out.println("    " + line);
+    private void upload() {
+        final String OBJECT_KEY = "unique_id";
+        AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+        AmazonS3 s3 = new AmazonS3Client(credentials);
+        java.security.Security.setProperty("networkaddress.cache.ttl", "60");
+        s3.setRegion(Region.getRegion(Regions.AP_SOUTHEAST_1));
+        s3.setEndpoint(targetIP);
+        List<Bucket> buckets = s3.listBuckets();
+        for (Bucket bucket : buckets) {
+            Log.e("Bucket ", "Name " + bucket.getName() + " Owner " + bucket.getOwner() + " Date " + bucket.getCreationDate());
         }
-        System.out.println();
+        Log.e("Size ", "" + s3.listBuckets().size());
+        transferUtility = new TransferUtility(s3, getApplicationContext());
+        File UPLOADING_IMAGE = new File(Environment.getExternalStorageDirectory().getPath() + "/Screenshot.png");
+        TransferObserver observer = transferUtility.upload(bucketName, UPLOADING_IMAGE);
+        final ProgressDialog progress = new ProgressDialog(this);
+        progress.show();
+        observer.setTransferListener(new TransferListener() {
 
+            @Override
+            public void onStateChanged(int id, TransferState state) {
+                progress.hide();
+                Toast.makeText(MainActivity.this, "ID " + id + "\nState " + state.name() + "\nImage ID " + OBJECT_KEY, Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onProgressChanged(int id, long bytesCurrent, long bytesTotal) {
+                int percentage = (int) (bytesCurrent / bytesTotal * 100);
+//                progress.setProgress(percentage);
+                //Display percentage transfered to user
+            }
+
+            @Override
+            public void onError(int id, Exception ex) {
+                // do something
+                Log.e("Error  ", "" + ex);
+            }
+
+        });
     }
 }
